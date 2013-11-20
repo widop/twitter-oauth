@@ -52,7 +52,7 @@ class AbstractOAuthRsaSha1SignatureTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('RSA-SHA1', $this->signature->getName());
     }
 
-    public function testGenarate()
+    public function testGenerate()
     {
         if (!extension_loaded('openssl')) {
             $this->markTestSkipped('The open ssl extension is required to process OAuth rsa sha1 signature tests.');

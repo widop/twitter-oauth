@@ -51,4 +51,4 @@ use Widop\Twitter\OAuth;
 ```
 
 The Wid'op OAuth library follows the [PSR-0 Standard](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md).
-If you prefer install it manually, it can be autoload by any convenient autoloader.
+If you prefer to install it manually, the library can be autoloaded by any convenient autoloader.
