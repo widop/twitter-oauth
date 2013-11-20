@@ -30,7 +30,9 @@ abstract class AbstractOAuthRsaSha1Signature implements OAuthSignatureInterface
         }
 
         if (openssl_sign($request->getSignature(), $signature, $privateKey) === false) {
+            // @codeCoverageIgnoreStart
             throw new \RuntimeException('The signature can not be generated.');
+            // @codeCoverageIgnoreEnd
         }
 
         openssl_free_key($privateKey);
