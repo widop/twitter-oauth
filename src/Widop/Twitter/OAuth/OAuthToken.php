@@ -16,7 +16,7 @@ namespace Widop\Twitter\OAuth;
  *
  * @author GeLo <geloen.eric@gmail.com>
  */
-class OAuthToken
+class OAuthToken implements \Serializable
 {
     /** @var string */
     private $key;
@@ -74,5 +74,21 @@ class OAuthToken
     public function setSecret($secret)
     {
         $this->secret = $secret;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serialize()
+    {
+        return serialize(array($this->key, $this->secret));
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function unserialize($serialized)
+    {
+        list($this->key, $this->secret) = unserialize($serialized);
     }
 }

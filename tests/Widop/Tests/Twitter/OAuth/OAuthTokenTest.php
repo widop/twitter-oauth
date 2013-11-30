@@ -58,4 +58,12 @@ class OAuthTokenTest extends \PHPUnit_Framework_TestCase
 
         $this->assertSame('foo', $this->token->getSecret());
     }
+
+    public function testSerialize()
+    {
+        $token = unserialize(serialize($this->token));
+
+        $this->assertSame($this->token->getKey(), $token->getKey());
+        $this->assertSame($this->token->getSecret(), $token->getSecret());
+    }
 }
