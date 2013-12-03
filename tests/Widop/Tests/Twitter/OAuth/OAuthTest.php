@@ -273,6 +273,23 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
         );
     }
 
+    public function testGetAuthenticateUrl()
+    {
+        $token = $this->getMockBuilder('Widop\Twitter\OAuth\OAuthToken')
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $token
+            ->expects($this->once())
+            ->method('getKey')
+            ->will($this->returnValue('token_key'));
+
+        $this->assertSame(
+            'https://api.twitter.com/oauth/authenticate?oauth_token=token_key',
+            $this->oauth->getAuthenticateUrl($token)
+        );
+    }
+
     public function testGetAccessToken()
     {
         $this->httpAdapter

@@ -190,6 +190,18 @@ class OAuth
     }
 
     /**
+     * Gets the authenticate url.
+     *
+     * @param \Widop\Twitter\OAuth\OAuthToken $requestToken The request token.
+     *
+     * @return string The authenticate url.
+     */
+    public function getAuthenticateUrl(OAuthToken $requestToken)
+    {
+        return sprintf('%s/authenticate?oauth_token=%s', $this->getUrl(), $requestToken->getKey());
+    }
+
+    /**
      * Gets an access token.
      *
      * @param \Widop\Twitter\OAuth\OAuthToken $requestToken The request token.
