@@ -60,8 +60,8 @@ To generate an access token in a web context, you will need to process the
 ![OAuth 1.0 Workflow](http://oauth.net/core/diagram.png)
 
 Basically, it is pretty simple. First of all, we need to get a "request token" with a callback url. Second, send the
-user on the authorize url with the request token just requested & then, wait for a twitter response on the callback url
-in order to generate the final "access token".
+user on the authorize/authenticate url with the request token just requested & then, wait for a twitter response on the
+callback url in order to generate the final "access token".
 
 So, let's go for requesting a "request token":
 
@@ -75,6 +75,15 @@ application some permissions :)
 ``` php
 $url = $oauth->getAuthorizeUrl($requestToken);
 ```
+
+Making this call will force the user to re-approve the application. If you don't want to, you can use the following
+method so that the user will be silently redirected:
+
+``` php
+$url = $oauth->getAuthenticateUrl($requestToken);
+```
+
+Note: In both case, the user will need to authorize the application if he/she hasn't done it before.
 
 One more time, that was difficult... Now, we wait for the twitter response. Basically, it is much more a request as
 twitter will send us an http request to our callback url in order to inform us the request token has been authorized
