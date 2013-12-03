@@ -96,7 +96,33 @@ Now, the last step is to get an access token:
 $accessToken = $oauth->getAccessToken($requestToken, $verifier);
 ```
 
-That's done, you're ready to use the Twitter client!
+That's done! You're ready to use the Twitter client!
+
+### Application Workflow
+
+To generate an access token in an application context, you will need to use the
+[Client Credentials Grant](http://tools.ietf.org/html/rfc6749#section-4.4) of the
+[OAuth2 specification](http://tools.ietf.org/html/rfc6749).
+
+![Client Credentials Grant](https://dev.twitter.com/sites/default/files/images_documentation/appauth.png)
+
+Note that Web OAuth access token (OAuth 1.0a) is still required to issue requests on behalf of users (meaning
+applications can't do these kinds of requests).
+
+Like in a web context, it is pretty simple (maybe more...). To get an access token (also known as bearer token due to
+the technic used), a unique call is needed:
+
+``` php
+$bearerToken = $oauth->getBearerToken();
+```
+
+You're done! Ready to use your token with the Twitter client!
+
+Additionally, be aware that you can invalidate a bearer token with the following snippet:
+
+``` php
+$oauth->invalidateBearerToken($bearerToken);
+```
 
 ### X-OAuth
 

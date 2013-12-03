@@ -71,7 +71,7 @@ class AbstractOAuthRsaSha1SignatureTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @expectedException \RuntimeException
-     * @expectedExceptionMessage The certificate private key can not be fetched.
+     * @expectedExceptionMessage The certificate private key cannot be fetched.
      */
     public function testGenerateWithInvalidPrivateCertificate()
     {

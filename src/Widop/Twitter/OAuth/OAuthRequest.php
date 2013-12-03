@@ -170,16 +170,6 @@ class OAuthRequest
      */
     public function getHeaders()
     {
-        if (!$this->hasHeader('Authorization') && $this->hasOAuthParameters()) {
-            $authorization = array();
-
-            foreach ($this->getOAuthParameters() as $key => $value) {
-                $authorization[] = sprintf('%s="%s"', $key, $value);
-            }
-
-            $this->setHeader('Authorization', sprintf('OAuth %s', implode(', ', $authorization)));
-        }
-
         return $this->headers;
     }
 

@@ -12,6 +12,7 @@
 namespace Widop\Tests\Twitter\OAuth;
 
 use Widop\Twitter\OAuth\OAuth;
+use Widop\Twitter\OAuth\Token\OAuthToken;
 
 /**
  * OAuth test.
@@ -88,7 +89,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($this->httpAdapter, $this->oauth->getHttpAdapter());
         $this->assertSame($this->consumer, $this->oauth->getConsumer());
         $this->assertSame($this->signature, $this->oauth->getSignature());
-        $this->assertSame('https://api.twitter.com/oauth', $this->oauth->getUrl());
+        $this->assertSame('https://api.twitter.com', $this->oauth->getUrl());
         $this->assertSame('1.0', $this->oauth->getVersion());
     }
 
@@ -141,57 +142,18 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('2.0', $this->oauth->getVersion());
     }
 
-    public function testSignRequestWithoutToken()
+    public function testSignRequest()
     {
         $request = $this->getMock('Widop\Twitter\OAuth\OAuthRequest');
-        $request
-            ->expects($this->once())
-            ->method('setOAuthParameters')
-            ->with($this->equalTo(array(
-                'oauth_version'          => '1.0',
-                'oauth_consumer_key'     => 'consumer_key',
-                'oauth_signature_method' => 'signature-name',
-            )));
 
-        $request
-            ->expects($this->once())
-            ->method('setOAuthParameter')
-            ->with($this->equalTo('oauth_signature'), $this->equalTo('signature'));
-
-        $this->oauth->signRequest($request);
-    }
-
-    public function testSignRequestWithToken()
-    {
-        $request = $this->getMock('Widop\Twitter\OAuth\OAuthRequest');
-        $request
-            ->expects($this->once())
-            ->method('setOAuthParameters')
-            ->with($this->equalTo(array(
-                'oauth_version'          => '1.0',
-                'oauth_consumer_key'     => 'consumer_key',
-                'oauth_signature_method' => 'signature-name',
-                'oauth_token'            => 'token_key',
-            )));
-
-        $request
-            ->expects($this->once())
-            ->method('setOAuthParameter')
-            ->with($this->equalTo('oauth_signature'), $this->equalTo('signature'));
-
-        $token = $this->getMockBuilder('Widop\Twitter\OAuth\OAuthToken')
+        $token = $this->getMockBuilder('Widop\Twitter\OAuth\Token\OAuthToken')
             ->disableOriginalConstructor()
             ->getMock();
 
         $token
             ->expects($this->once())
-            ->method('getKey')
-            ->will($this->returnValue('token_key'));
-
-        $token
-            ->expects($this->once())
-            ->method('getSecret')
-            ->will($this->returnValue('token_secret'));
+            ->method('signRequest')
+            ->with($this->identicalTo($request), $this->identicalTo($this->oauth));
 
         $this->oauth->signRequest($request, $token);
     }
@@ -199,7 +161,8 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     public function testGetRequestTokenWithoutCallback()
     {
         $response = $this->getMock('Widop\HttpAdapter\Response');
-        $response->expects($this->once())
+        $response
+            ->expects($this->once())
             ->method('getBody')
             ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
 
@@ -226,7 +189,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
         $token = $this->oauth->getRequestToken();
 
-        $this->assertInstanceOf('Widop\Twitter\OAuth\OAuthToken', $token);
+        $this->assertInstanceOf('Widop\Twitter\OAuth\Token\OAuthToken', $token);
         $this->assertSame('token_key', $token->getKey());
         $this->assertSame('token_secret', $token->getSecret());
     }
@@ -234,7 +197,8 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     public function testGetRequestTokenWithCallback()
     {
         $response = $this->getMock('Widop\HttpAdapter\Response');
-        $response->expects($this->once())
+        $response
+            ->expects($this->once())
             ->method('getBody')
             ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
 
@@ -261,14 +225,14 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
         $token = $this->oauth->getRequestToken('http://my-url.com/callback');
 
-        $this->assertInstanceOf('Widop\Twitter\OAuth\OAuthToken', $token);
+        $this->assertInstanceOf('Widop\Twitter\OAuth\Token\OAuthToken', $token);
         $this->assertSame('token_key', $token->getKey());
         $this->assertSame('token_secret', $token->getSecret());
     }
 
     public function testGetAuthorizeUrl()
     {
-        $token = $this->getMockBuilder('Widop\Twitter\OAuth\OAuthToken')
+        $token = $this->getMockBuilder('Widop\Twitter\OAuth\Token\OAuthToken')
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -285,7 +249,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetAuthenticateUrl()
     {
-        $token = $this->getMockBuilder('Widop\Twitter\OAuth\OAuthToken')
+        $token = $this->getMockBuilder('Widop\Twitter\OAuth\Token\OAuthToken')
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -303,7 +267,8 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     public function testGetAccessToken()
     {
         $response = $this->getMock('Widop\HttpAdapter\Response');
-        $response->expects($this->once())
+        $response
+            ->expects($this->once())
             ->method('getBody')
             ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
 
@@ -328,25 +293,124 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             )
             ->will($this->returnValue($response));
 
-        $requestToken = $this->getMockBuilder('Widop\Twitter\OAuth\OAuthToken')
+        $accessToken = $this->oauth->getAccessToken(new OAuthToken('token_key', 'token_secret'), 'oauth_verifier');
+
+        $this->assertInstanceOf('Widop\Twitter\OAuth\Token\OAuthToken', $accessToken);
+        $this->assertSame('token_key', $accessToken->getKey());
+        $this->assertSame('token_secret', $accessToken->getSecret());
+    }
+
+    /**
+     * @expectedException \RuntimeException
+     * @expectedExceptionMessage An error occured when creating the bearer token.
+     */
+    public function testGetBearerTokenWithBadAdapterReturn()
+    {
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response
+            ->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('foo'));
+
+        $this->httpAdapter
+            ->expects($this->once())
+            ->method('postContent')
+            ->with(
+                $this->equalTo('https://api.twitter.com/oauth2/token'),
+                $this->equalTo(array('Authorization' => 'Basic Y29uc3VtZXJfa2V5OmNvbnN1bWVyX3NlY3JldA==')),
+                $this->equalTo(array('grant_type' => 'oauth_verifier'))
+            )
+            ->will($this->returnValue($response));
+
+        $this->oauth->getBearerToken('oauth_verifier');
+    }
+
+    public function testGetBearerToken()
+    {
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response
+            ->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('{"token_type":"bearer","access_token":"foo"}'));
+
+        $this->httpAdapter
+            ->expects($this->once())
+            ->method('postContent')
+            ->with(
+                $this->equalTo('https://api.twitter.com/oauth2/token'),
+                $this->equalTo(array('Authorization' => 'Basic Y29uc3VtZXJfa2V5OmNvbnN1bWVyX3NlY3JldA==')),
+                $this->equalTo(array('grant_type' => 'oauth_verifier'))
+            )
+            ->will($this->returnValue($response));
+
+        $bearerToken = $this->oauth->getBearerToken('oauth_verifier');
+
+        $this->assertInstanceOf('Widop\Twitter\OAuth\Token\BearerToken', $bearerToken);
+        $this->assertSame('foo', $bearerToken->getValue());
+    }
+
+    public function testInvalidateBearerToken()
+    {
+        $bearerToken = $this->getMockBuilder('Widop\Twitter\OAuth\Token\BearerToken')
             ->disableOriginalConstructor()
             ->getMock();
 
-        $requestToken
+        $bearerToken
+            ->expects($this->exactly(2))
+            ->method('getValue')
+            ->will($this->returnValue('token'));
+
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response
             ->expects($this->once())
-            ->method('getKey')
-            ->will($this->returnValue('token_key'));
+            ->method('getBody')
+            ->will($this->returnValue('{"access_token":"token"}'));
 
-        $requestToken
+        $this->httpAdapter
             ->expects($this->once())
-            ->method('getKey')
-            ->will($this->returnValue('token_secret'));
+            ->method('postContent')
+            ->with(
+                $this->equalTo('https://api.twitter.com/oauth2/invalidate_token'),
+                $this->equalTo(array('Authorization' => 'Basic Y29uc3VtZXJfa2V5OmNvbnN1bWVyX3NlY3JldA==')),
+                $this->equalTo(array('access_token' => 'token'))
+            )
+            ->will($this->returnValue($response));
 
-        $accessToken = $this->oauth->getAccessToken($requestToken, 'oauth_verifier');
+        $this->oauth->invalidateBearerToken($bearerToken);
+    }
 
-        $this->assertInstanceOf('Widop\Twitter\OAuth\OAuthToken', $accessToken);
-        $this->assertSame('token_key', $accessToken->getKey());
-        $this->assertSame('token_secret', $accessToken->getSecret());
+    /**
+     * @expectedException \RuntimeException
+     * @expectedExceptionMessage An error occured when invalidating the bearer token.
+     */
+    public function testInvalidateBearerTokenWithInvalidResponse()
+    {
+        $bearerToken = $this->getMockBuilder('Widop\Twitter\OAuth\Token\BearerToken')
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $bearerToken
+            ->expects($this->once())
+            ->method('getValue')
+            ->will($this->returnValue('token'));
+
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response
+            ->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('foo'));
+
+        $this->httpAdapter
+            ->expects($this->once())
+            ->method('postContent')
+            ->with(
+                $this->equalTo('https://api.twitter.com/oauth2/invalidate_token'),
+                $this->equalTo(array('Authorization' => 'Basic Y29uc3VtZXJfa2V5OmNvbnN1bWVyX3NlY3JldA==')),
+                $this->equalTo(array('access_token' => 'token'))
+            )
+            ->will($this->returnValue($response));
+
+        $this->oauth->invalidateBearerToken($bearerToken);
     }
 
     /**
@@ -356,7 +420,8 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     public function testTokenError()
     {
         $response = $this->getMock('Widop\HttpAdapter\Response');
-        $response->expects($this->once())
+        $response
+            ->expects($this->once())
             ->method('getBody')
             ->will($this->returnValue('foo'));
 
