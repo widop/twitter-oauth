@@ -172,7 +172,7 @@ class OAuth
         $request->setOAuthParameter('oauth_callback', $callback);
         $this->signRequest($request);
 
-        $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders());
+        $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders())->getBody();
 
         return $this->createToken($response);
     }
@@ -215,7 +215,7 @@ class OAuth
         $request->setOAuthParameter('oauth_verifier', $verifier);
         $this->signRequest($request, $requestToken);
 
-        $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders());
+        $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders())->getBody();
 
         return $this->createToken($response);
     }
