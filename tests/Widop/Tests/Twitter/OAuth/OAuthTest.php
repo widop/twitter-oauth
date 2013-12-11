@@ -198,6 +198,11 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetRequestTokenWithoutCallback()
     {
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
+
         $this->httpAdapter
             ->expects($this->once())
             ->method('postContent')
@@ -217,7 +222,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
                     }
                 })
             )
-            ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
+            ->will($this->returnValue($response));
 
         $token = $this->oauth->getRequestToken();
 
@@ -228,6 +233,11 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetRequestTokenWithCallback()
     {
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
+
         $this->httpAdapter
             ->expects($this->once())
             ->method('postContent')
@@ -247,7 +257,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
                     }
                 })
             )
-            ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
+            ->will($this->returnValue($response));
 
         $token = $this->oauth->getRequestToken('http://my-url.com/callback');
 
@@ -292,6 +302,11 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetAccessToken()
     {
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
+
         $this->httpAdapter
             ->expects($this->once())
             ->method('postContent')
@@ -311,7 +326,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
                     }
                 })
             )
-            ->will($this->returnValue('oauth_token=token_key&oauth_token_secret=token_secret'));
+            ->will($this->returnValue($response));
 
         $requestToken = $this->getMockBuilder('Widop\Twitter\OAuth\OAuthToken')
             ->disableOriginalConstructor()
@@ -340,10 +355,15 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
      */
     public function testTokenError()
     {
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('foo'));
+
         $this->httpAdapter
             ->expects($this->once())
             ->method('postContent')
-            ->will($this->returnValue('foo'));
+            ->will($this->returnValue($response));
 
         $this->oauth->getRequestToken();
     }
