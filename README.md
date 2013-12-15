@@ -2,8 +2,10 @@
 
 [![Build Status](https://secure.travis-ci.org/widop/twitter-oauth.png)](http://travis-ci.org/widop/twitter-oauth)
 
-The Wid'op OAuth library is a modern PHP 5.3+ API allowing you to easily obtain a Twitter access token
-through the OAuth workflow.
+The Wid'op OAuth library is a modern PHP 5.3+ API allowing you to easily obtain a Twitter access token. For now, it
+supports OAuth Web & Application tokens (not xOAuth).
+
+Here a sample for the Web workflow:
 
 ``` php
 use Widop\HttpAdapter\CurlHttpAdapter;
@@ -18,10 +20,11 @@ $oauth = new OAuth\OAuth(
 
 // Second, get/cache a "request token" somewhere (here in session)
 if (!isset($_SESSION['my_request_session'])) {
-    $_SESSION['my_request_session'] = $oauth->getRequestToken('http://my-app.com/twitter-callback.php');
+    $requestToken = $oauth->getRequestToken('http://my-app.com/twitter-callback.php');
+    $_SESSION['my_request_session'] = serialize($requestToken);
+} else {
+    $requestToken = unserialize($_SESSION['my_request_token']);
 }
-
-$requestToken = $_SESSION['my_request_token'];
 
 // Third, redirect the user on twitter for getting permissions
 echo '<a href="'.$oauth->getAuthorizeUrl($requestToken).'">Authorize the application</a>';
