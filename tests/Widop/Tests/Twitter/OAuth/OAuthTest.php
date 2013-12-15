@@ -12,6 +12,7 @@
 namespace Widop\Tests\Twitter\OAuth;
 
 use Widop\Twitter\OAuth\OAuth;
+use Widop\Twitter\OAuth\OAuthRequest;
 use Widop\Twitter\OAuth\Token\OAuthToken;
 
 /**
@@ -413,11 +414,107 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
         $this->oauth->invalidateBearerToken($bearerToken);
     }
 
+    public function testSendRequestWithGetRequest()
+    {
+        $request = $this->getMock('Widop\Twitter\OAuth\OAuthRequest');
+        $request
+            ->expects($this->once())
+            ->method('getMethod')
+            ->will($this->returnValue(OAuthRequest::METHOD_GET));
+
+        $request
+            ->expects($this->once())
+            ->method('getUrl')
+            ->will($this->returnValue('url'));
+
+        $request
+            ->expects($this->once())
+            ->method('getHeaders')
+            ->will($this->returnValue(array('header' => 'foo')));
+
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response
+            ->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('foo'));
+
+        $this->httpAdapter
+            ->expects($this->once())
+            ->method('getContent')
+            ->with($this->identicalTo('url'), $this->identicalTo(array('header' => 'foo')))
+            ->will($this->returnValue($response));
+
+        $this->assertSame('foo', $this->oauth->sendRequest($request));
+    }
+
+    public function testSendRequestWithPostRequest()
+    {
+        $request = $this->getMock('Widop\Twitter\OAuth\OAuthRequest');
+        $request
+            ->expects($this->once())
+            ->method('getMethod')
+            ->will($this->returnValue(OAuthRequest::METHOD_POST));
+
+        $request
+            ->expects($this->once())
+            ->method('getUrl')
+            ->will($this->returnValue('url'));
+
+        $request
+            ->expects($this->once())
+            ->method('getHeaders')
+            ->will($this->returnValue(array('header' => 'foo')));
+
+        $request
+            ->expects($this->once())
+            ->method('getPostParameters')
+            ->will($this->returnValue(array('post' => 'bar')));
+
+        $request
+            ->expects($this->once())
+            ->method('getFileParameters')
+            ->will($this->returnValue(array('file' => 'baz')));
+
+        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response
+            ->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('foo'));
+
+        $this->httpAdapter
+            ->expects($this->once())
+            ->method('postContent')
+            ->with(
+                $this->identicalTo('url'),
+                $this->identicalTo(array('header' => 'foo')),
+                $this->identicalTo(array('post' => 'bar')),
+                $this->identicalTo(array('file' => 'baz'))
+            )
+            ->will($this->returnValue($response));
+
+        $this->assertSame('foo', $this->oauth->sendRequest($request));
+    }
+
+    /**
+     * @expectedException \RuntimeException
+     * @expectedExceptionMessage The request method "DELETE" is not supported.
+     */
+    public function testSendRequestWithInvalidRequest()
+    {
+        $request = $this->getMock('Widop\Twitter\OAuth\OAuthRequest');
+        $request
+            ->expects($this->any())
+            ->method('getMethod')
+            ->will($this->returnValue('DELETE'));
+
+        $this->oauth->sendRequest($request);
+    }
+
     /**
      * @expectedException \RuntimeException
      * @expectedExceptionMessage An error occured when creating the OAuth token. (foo)
      */
-    public function testTokenError()
+    public function testGetRequestTokenError()
     {
         $response = $this->getMock('Widop\HttpAdapter\Response');
         $response
