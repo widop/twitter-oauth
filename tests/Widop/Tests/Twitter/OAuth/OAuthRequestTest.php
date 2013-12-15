@@ -60,6 +60,13 @@ class OAuthRequestTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('POST', $this->request->getMethod());
     }
 
+    public function testHasOauthParameters()
+    {
+        $this->assertFalse($this->request->hasOAuthParameters());
+        $this->request->setOAuthParameter('foo', 'bar');
+        $this->assertTrue($this->request->hasOAuthParameters());
+    }
+
     public function testGetOAuthParameters()
     {
         $now = time();
@@ -136,16 +143,8 @@ class OAuthRequestTest extends \PHPUnit_Framework_TestCase
         $this->request->setOAuthParameter('oauth_token', 'oauth_token');
 
         $this->assertFalse($this->request->hasHeaders());
-
-        $headers = $this->request->getHeaders();
-        $this->assertArrayHasKey('Authorization', $headers);
-
-        $this->assertRegExp(
-            '#OAuth oauth_token="oauth_token", oauth_nonce="(.*)", oauth_timestamp="(.*)"#',
-            $headers['Authorization']
-        );
-
-        $this->assertTrue($this->request->hasHeaders());
+        $this->assertTrue($this->request->hasOAuthParameter('oauth_token'));
+        $this->assertEmpty($this->request->getHeaders());
     }
 
     public function testSetHeaders()

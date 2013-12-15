@@ -26,12 +26,12 @@ abstract class AbstractOAuthRsaSha1Signature implements OAuthSignatureInterface
     public function generate(OAuthRequest $request, $consumerSecret, $tokenSecret = null)
     {
         if (($privateKey = openssl_pkey_get_private($this->getPrivateCertificate())) === false) {
-            throw new \RuntimeException('The certificate private key can not be fetched.');
+            throw new \RuntimeException('The certificate private key cannot be fetched.');
         }
 
         if (openssl_sign($request->getSignature(), $signature, $privateKey) === false) {
             // @codeCoverageIgnoreStart
-            throw new \RuntimeException('The signature can not be generated.');
+            throw new \RuntimeException('The signature cannot be generated.');
             // @codeCoverageIgnoreEnd
         }
 

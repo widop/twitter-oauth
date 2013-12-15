@@ -12,6 +12,10 @@
 namespace Widop\Twitter\OAuth;
 
 use Widop\HttpAdapter\HttpAdapterInterface;
+use Widop\Twitter\OAuth\Token\BasicToken;
+use Widop\Twitter\OAuth\Token\BearerToken;
+use Widop\Twitter\OAuth\Token\OAuthToken;
+use Widop\Twitter\OAuth\Token\TokenInterface;
 use Widop\Twitter\OAuth\Signature\OAuthSignatureInterface;
 
 /**
@@ -49,7 +53,7 @@ class OAuth
         HttpAdapterInterface $httpAdapter,
         OAuthConsumer $consumer,
         OAuthSignatureInterface $signature,
-        $url = 'https://api.twitter.com/oauth',
+        $url = 'https://api.twitter.com',
         $version = '1.0'
     ) {
         $this->setHttpAdapter($httpAdapter);
@@ -164,86 +168,122 @@ class OAuth
      *
      * @param string $callback The OAuth callback.
      *
-     * @return \Widop\Twitter\OAuth\OAuthToken The request token.
+     * @return \Widop\Twitter\OAuth\Token\OAuthToken The request token.
      */
     public function getRequestToken($callback = 'oob')
     {
-        $request = $this->createRequest('/request_token', 'POST');
+        $request = $this->createRequest('/oauth/request_token', 'POST');
         $request->setOAuthParameter('oauth_callback', $callback);
-        $this->signRequest($request);
+        $this->signRequest($request, new OAuthToken());
 
         $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders())->getBody();
 
-        return $this->createToken($response);
+        return $this->createOAuthToken($response);
     }
 
     /**
      * Gets the authorize url.
      *
-     * @param \Widop\Twitter\OAuth\OAuthToken $requestToken The request token.
+     * @param \Widop\Twitter\OAuth\Token\OAuthToken $requestToken The request token.
      *
      * @return string The authorize url.
      */
     public function getAuthorizeUrl(OAuthToken $requestToken)
     {
-        return sprintf('%s/authorize?oauth_token=%s', $this->getUrl(), $requestToken->getKey());
+        return sprintf('%s/oauth/authorize?oauth_token=%s', $this->getUrl(), $requestToken->getKey());
     }
 
     /**
      * Gets the authenticate url.
      *
-     * @param \Widop\Twitter\OAuth\OAuthToken $requestToken The request token.
+     * @param \Widop\Twitter\OAuth\Token\OAuthToken $requestToken The request token.
      *
      * @return string The authenticate url.
      */
     public function getAuthenticateUrl(OAuthToken $requestToken)
     {
-        return sprintf('%s/authenticate?oauth_token=%s', $this->getUrl(), $requestToken->getKey());
+        return sprintf('%s/oauth/authenticate?oauth_token=%s', $this->getUrl(), $requestToken->getKey());
     }
 
     /**
      * Gets an access token.
      *
-     * @param \Widop\Twitter\OAuth\OAuthToken $requestToken The request token.
-     * @param string                          $verifier     The OAuth verifier.
+     * @param \Widop\Twitter\OAuth\Token\OAuthToken $requestToken The request token.
+     * @param string                                $verifier     The OAuth verifier.
      *
-     * @return \Widop\Twitter\OAuth\OAuthToken The access token.
+     * @return \Widop\Twitter\OAuth\Token\OAuthToken The access token.
      */
     public function getAccessToken(OAuthToken $requestToken, $verifier)
     {
-        $request = $this->createRequest('/access_token', 'POST');
+        $request = $this->createRequest('/oauth/access_token', 'POST');
         $request->setOAuthParameter('oauth_verifier', $verifier);
         $this->signRequest($request, $requestToken);
 
         $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders())->getBody();
 
-        return $this->createToken($response);
+        return $this->createOAuthToken($response);
     }
 
     /**
-     * Sign a request.
+     * Gets a bearer token.
      *
-     * @param \Widop\Twitter\OAuth\OAuthRequest    $request The request.
-     * @param \Widop\Twitter\OAuth\OAuthToken|null $token   The access token.
+     * @param string $grantType The OAuth grant type.
+     *
+     * @return \Widop\Twitter\OAuth\Token\BearerToken The bearer token.
      */
-    public function signRequest(OAuthRequest $request, OAuthToken $token = null)
+    public function getBearerToken($grantType = 'client_credentials')
     {
-        $oauthParameters = array(
-            'oauth_version'          => $this->getVersion(),
-            'oauth_consumer_key'     => $this->getConsumer()->getKey(),
-            'oauth_signature_method' => $this->getSignature()->getName(),
-        );
+        $request = $this->createRequest('/oauth2/token', 'POST');
+        $request->setPostParameter('grant_type', $grantType);
+        $this->signRequest($request, new BasicToken());
 
-        if ($token !== null) {
-            $oauthParameters['oauth_token'] = $token->getKey();
+        $response = $this->getHttpAdapter()->postContent(
+            $request->getUrl(),
+            $request->getHeaders(),
+            $request->getPostParameters()
+        )->getBody();
+
+        return $this->createBearerToken($response);
+    }
+
+    /**
+     * Invalidates the bearer token.
+     *
+     * @param \Widop\Twitter\OAuth\BearerToken $token The bearer token.
+     *
+     * @throws \RuntimeException If the token was not invalidated.
+     */
+    public function invalidateBearerToken(BearerToken $token)
+    {
+        $request = $this->createRequest('/oauth2/invalidate_token', 'POST');
+        $request->setPostParameter('access_token', $token->getValue());
+        $this->signRequest($request, new BasicToken());
+
+        $response = $this->getHttpAdapter()->postContent(
+            $request->getUrl(),
+            $request->getHeaders(),
+            $request->getPostParameters()
+        )->getBody();
+
+        $result = json_decode($response, true);
+
+        if (($result === null) || isset($result['errors']) || ($token->getValue() !== $result['access_token'])) {
+            throw new \RuntimeException(sprintf(
+                'An error occured when invalidating the bearer token.',
+                $response
+            ));
         }
+    }
 
-        $request->setOAuthParameters($oauthParameters);
-        $request->setOAuthParameter('oauth_signature', $this->getSignature()->generate(
-            $request,
-            $this->getConsumer()->getSecret(),
-            ($token !== null) ? $token->getSecret() : null
-        ));
+    /**
+     * Signs a request.
+     *
+     * @param \Widop\Twitter\OAuth\OAuthRequest   $request The request.
+     * @param \Widop\Twitter\OAuth\TokenInterface $token   The token.
+     */
+    public function signRequest(OAuthRequest $request, TokenInterface $token)
+    {
+        $token->signRequest($request, $this);
     }
 
     /**
@@ -265,15 +305,15 @@ class OAuth
     }
 
     /**
-     * Creates a token according to an http response.
+     * Creates an oauth token according to an http response.
      *
      * @param string $response The http response.
      *
-     * @throws \RuntimeException If the token can not be created.
+     * @throws \RuntimeException If the token cannot be created.
      *
-     * @return \Widop\Twitter\OAuth\OAuthToken The OAuth token.
+     * @return \Widop\Twitter\OAuth\Token\OAuthToken The OAuth token.
      */
-    private function createToken($response)
+    private function createOAuthToken($response)
     {
         parse_str($response, $datas);
 
@@ -285,5 +325,28 @@ class OAuth
         }
 
         return new OAuthToken($datas['oauth_token'], $datas['oauth_token_secret']);
+    }
+
+    /**
+     * Creates a bearer token according to an http response.
+     *
+     * @param string $response The http response.
+     *
+     * @throws \RuntimeException If the token cannot be created.
+     *
+     * @return \Widop\Twitter\OAuth\Token\BearerToken The Bearer token.
+     */
+    private function createBearerToken($response)
+    {
+        $datas = json_decode($response, true);
+
+        if (($datas === null) || !isset($datas['token_type']) || !isset($datas['access_token'])) {
+            throw new \RuntimeException(sprintf(
+                'An error occured when creating the bearer token. (%s)',
+                str_replace("\n", '', $response)
+            ));
+        }
+
+        return new BearerToken($datas['access_token']);
     }
 }
