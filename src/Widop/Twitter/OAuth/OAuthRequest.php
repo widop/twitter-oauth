@@ -18,6 +18,12 @@ namespace Widop\Twitter\OAuth;
  */
 class OAuthRequest
 {
+    /** @const string The GET request method. */
+    const METHOD_GET = 'GET';
+
+    /** @const string The POST request method. */
+    const METHOD_POST = 'POST';
+
     /** @var string */
     private $baseUrl;
 

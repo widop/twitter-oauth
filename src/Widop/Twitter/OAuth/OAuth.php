@@ -172,13 +172,11 @@ class OAuth
      */
     public function getRequestToken($callback = 'oob')
     {
-        $request = $this->createRequest('/oauth/request_token', 'POST');
+        $request = $this->createRequest('/oauth/request_token');
         $request->setOAuthParameter('oauth_callback', $callback);
         $this->signRequest($request, new OAuthToken());
 
-        $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders())->getBody();
-
-        return $this->createOAuthToken($response);
+        return $this->createOAuthToken($this->sendRequest($request));
     }
 
     /**
@@ -215,13 +213,11 @@ class OAuth
      */
     public function getAccessToken(OAuthToken $requestToken, $verifier)
     {
-        $request = $this->createRequest('/oauth/access_token', 'POST');
+        $request = $this->createRequest('/oauth/access_token');
         $request->setOAuthParameter('oauth_verifier', $verifier);
         $this->signRequest($request, $requestToken);
 
-        $response = $this->getHttpAdapter()->postContent($request->getUrl(), $request->getHeaders())->getBody();
-
-        return $this->createOAuthToken($response);
+        return $this->createOAuthToken($this->sendRequest($request));
     }
 
     /**
@@ -287,19 +283,57 @@ class OAuth
     }
 
     /**
+     * Sends an OAuth request.
+     *
+     * @param \Widop\Twitter\OAuth\OAuthRequest $request The OAuth request.
+     *
+     * @throws \RuntimeException If the request method is not supported.
+     *
+     * @return string The response body.
+     */
+    public function sendRequest(OAuthRequest $request)
+    {
+        switch ($request->getMethod()) {
+            case OAuthRequest::METHOD_GET:
+                return $this->httpAdapter->getContent(
+                    $request->getUrl(),
+                    $request->getHeaders()
+                )->getBody();
+
+            case OAuthRequest::METHOD_POST:
+                $postParameters = array();
+                foreach ($request->getPostParameters() as $name => $value) {
+                    $postParameters[rawurldecode($name)] = rawurldecode($value);
+                }
+
+                return $this->httpAdapter->postContent(
+                    $request->getUrl(),
+                    $request->getHeaders(),
+                    $postParameters,
+                    $request->getFileParameters()
+                )->getBody();
+
+            default:
+                throw new \RuntimeException(sprintf(
+                    'The request method "%s" is not supported.',
+                    $request->getMethod()
+                ));
+        }
+    }
+
+    /**
      * Creates an OAuth request.
      *
-     * @param string $path   The OAuth path.
-     * @param string $method The http method.
+     * @param string $path The OAuth path.
      *
      * @return \Widop\Twitter\OAuth\OAuthRequest The OAuth request.
      */
-    private function createRequest($path, $method)
+    private function createRequest($path)
     {
         $request = new OAuthRequest();
         $request->setBaseUrl($this->getUrl());
         $request->setPath($path);
-        $request->setMethod($method);
+        $request->setMethod(OAuthRequest::METHOD_POST);
 
         return $request;
     }
