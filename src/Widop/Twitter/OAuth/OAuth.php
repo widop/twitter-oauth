@@ -172,7 +172,7 @@ class OAuth
      */
     public function getRequestToken($callback = 'oob')
     {
-        $request = $this->createRequest('/oauth/request_token');
+        $request = $this->createRequest('/oauth/request_token', OAuthResponse::FORMAT_STR);
         $request->setOAuthParameter('oauth_callback', $callback);
         $this->signRequest($request, new OAuthToken());
 
@@ -213,7 +213,7 @@ class OAuth
      */
     public function getAccessToken(OAuthToken $requestToken, $verifier)
     {
-        $request = $this->createRequest('/oauth/access_token');
+        $request = $this->createRequest('/oauth/access_token', OAuthResponse::FORMAT_STR);
         $request->setOAuthParameter('oauth_verifier', $verifier);
         $this->signRequest($request, $requestToken);
 
@@ -229,17 +229,11 @@ class OAuth
      */
     public function getBearerToken($grantType = 'client_credentials')
     {
-        $request = $this->createRequest('/oauth2/token', 'POST');
+        $request = $this->createRequest('/oauth2/token');
         $request->setPostParameter('grant_type', $grantType);
         $this->signRequest($request, new BasicToken());
 
-        $response = $this->getHttpAdapter()->postContent(
-            $request->getUrl(),
-            $request->getHeaders(),
-            $request->getPostParameters()
-        )->getBody();
-
-        return $this->createBearerToken($response);
+        return $this->createBearerToken($this->sendRequest($request));
     }
 
     /**
@@ -251,23 +245,14 @@ class OAuth
      */
     public function invalidateBearerToken(BearerToken $token)
     {
-        $request = $this->createRequest('/oauth2/invalidate_token', 'POST');
+        $request = $this->createRequest('/oauth2/invalidate_token');
         $request->setPostParameter('access_token', $token->getValue());
         $this->signRequest($request, new BasicToken());
 
-        $response = $this->getHttpAdapter()->postContent(
-            $request->getUrl(),
-            $request->getHeaders(),
-            $request->getPostParameters()
-        )->getBody();
+        $response = $this->sendRequest($request);
 
-        $result = json_decode($response, true);
-
-        if (($result === null) || isset($result['errors']) || ($token->getValue() !== $result['access_token'])) {
-            throw new \RuntimeException(sprintf(
-                'An error occured when invalidating the bearer token.',
-                $response
-            ));
+        if ($token->getValue() !== $response->getData('access_token')) {
+            throw new OAuthException('An error occured when invalidating the bearer token.', $response);
         }
     }
 
@@ -289,16 +274,14 @@ class OAuth
      *
      * @throws \RuntimeException If the request method is not supported.
      *
-     * @return string The response body.
+     * @return \Widop\Twitter\OAuth\OAuthResponse The OAuth response.
      */
     public function sendRequest(OAuthRequest $request)
     {
         switch ($request->getMethod()) {
             case OAuthRequest::METHOD_GET:
-                return $this->httpAdapter->getContent(
-                    $request->getUrl(),
-                    $request->getHeaders()
-                )->getBody();
+                $httpResponse = $this->httpAdapter->getContent($request->getUrl(), $request->getHeaders());
+                break;
 
             case OAuthRequest::METHOD_POST:
                 $postParameters = array();
@@ -306,12 +289,13 @@ class OAuth
                     $postParameters[rawurldecode($name)] = rawurldecode($value);
                 }
 
-                return $this->httpAdapter->postContent(
+                $httpResponse = $this->httpAdapter->postContent(
                     $request->getUrl(),
                     $request->getHeaders(),
                     $postParameters,
                     $request->getFileParameters()
-                )->getBody();
+                );
+                break;
 
             default:
                 throw new \RuntimeException(sprintf(
@@ -319,68 +303,68 @@ class OAuth
                     $request->getMethod()
                 ));
         }
+
+        $response = new OAuthResponse($httpResponse, $request->getResponseFormat());
+
+        if (!$response->isValid()) {
+            throw new OAuthException('The http response is not valid.', $response);
+        }
+
+        return $response;
     }
 
     /**
      * Creates an OAuth request.
      *
-     * @param string $path The OAuth path.
+     * @param string $path           The OAuth path.
+     * @param string $responseFormat The response format.
      *
      * @return \Widop\Twitter\OAuth\OAuthRequest The OAuth request.
      */
-    private function createRequest($path)
+    private function createRequest($path, $responseFormat = OAuthResponse::FORMAT_JSON)
     {
         $request = new OAuthRequest();
         $request->setBaseUrl($this->getUrl());
         $request->setPath($path);
         $request->setMethod(OAuthRequest::METHOD_POST);
+        $request->setResponseFormat($responseFormat);
 
         return $request;
     }
 
     /**
-     * Creates an oauth token according to an http response.
+     * Creates an oauth token according to an OAuth response.
      *
-     * @param string $response The http response.
+     * @param \Widop\Twitter\OAuth\OAuthResponse $response The OAuth response.
      *
-     * @throws \RuntimeException If the token cannot be created.
+     * @throws \Widop\Twitter\OAuth\OAuthException If the token cannot be created.
      *
      * @return \Widop\Twitter\OAuth\Token\OAuthToken The OAuth token.
      */
-    private function createOAuthToken($response)
+    private function createOAuthToken(OAuthResponse $response)
     {
-        parse_str($response, $datas);
-
-        if (!isset($datas['oauth_token']) || !isset($datas['oauth_token_secret'])) {
-            throw new \RuntimeException(sprintf(
-                'An error occured when creating the OAuth token. (%s)',
-                str_replace("\n", '', $response)
-            ));
+        if (!$response->hasData('oauth_token') || !$response->hasData('oauth_token_secret')) {
+            throw new OAuthException('An error occured when creating the OAuth token.', $response);
         }
 
-        return new OAuthToken($datas['oauth_token'], $datas['oauth_token_secret']);
+        return new OAuthToken($response->getData('oauth_token'), $response->getData('oauth_token_secret'));
     }
 
     /**
-     * Creates a bearer token according to an http response.
+     * Creates a bearer token according to an OAuth response.
      *
-     * @param string $response The http response.
+     * @param \Widop\Twitter\OAuth\OAuthResponse $response The OAuth response.
      *
-     * @throws \RuntimeException If the token cannot be created.
+     * @throws \Widop\Twitter\OAuth\OAuthException If the token cannot be created.
      *
      * @return \Widop\Twitter\OAuth\Token\BearerToken The Bearer token.
      */
-    private function createBearerToken($response)
+    private function createBearerToken(OAuthResponse $response)
     {
-        $datas = json_decode($response, true);
-
-        if (($datas === null) || !isset($datas['token_type']) || !isset($datas['access_token'])) {
-            throw new \RuntimeException(sprintf(
-                'An error occured when creating the bearer token. (%s)',
-                str_replace("\n", '', $response)
-            ));
+        if (!$response->hasData('token_type') || !$response->hasData('access_token')) {
+            throw new OAuthException('An error occured when creating the bearer token.', $response);
         }
 
-        return new BearerToken($datas['access_token']);
+        return new BearerToken($response->getData('access_token'));
     }
 }
