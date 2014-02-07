@@ -12,6 +12,7 @@
 namespace Widop\Tests\Twitter\OAuth;
 
 use Widop\Twitter\OAuth\OAuthRequest;
+use Widop\Twitter\OAuth\OAuthResponse;
 
 /**
  * OAuth request test.
@@ -393,6 +394,18 @@ class OAuthRequestTest extends \PHPUnit_Framework_TestCase
     public function testRemoveFileParameterWithInvalidName()
     {
         $this->request->removeFileParameter('foo');
+    }
+
+    public function testDefaultResponseFormat()
+    {
+        $this->assertSame(OAuthResponse::FORMAT_JSON, $this->request->getResponseFormat());
+    }
+
+    public function testResponseFormat()
+    {
+        $this->request->setResponseFormat(OAuthResponse::FORMAT_STR);
+
+        $this->assertSame(OAuthResponse::FORMAT_STR, $this->request->getResponseFormat());
     }
 
     public function testSignatureUrlWithoutPathParameters()

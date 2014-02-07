@@ -51,6 +51,9 @@ class OAuthRequest
     /** @var array */
     private $fileParameters;
 
+    /** @var string */
+    private $responseFormat;
+
     /**
      * Creates an OAuth request.
      */
@@ -62,6 +65,8 @@ class OAuthRequest
         $this->getParameters = array();
         $this->postParameters = array();
         $this->fileParameters = array();
+
+        $this->setResponseFormat(OAuthResponse::FORMAT_JSON);
     }
 
     /**
@@ -699,6 +704,26 @@ class OAuthRequest
         }
 
         unset($this->fileParameters[$name]);
+    }
+
+    /**
+     * Gets the response format.
+     *
+     * @return string The response format.
+     */
+    public function getResponseFormat()
+    {
+        return $this->responseFormat;
+    }
+
+    /**
+     * Sets the response format.
+     *
+     * @param string $responseFormat The response format.
+     */
+    public function setResponseFormat($responseFormat)
+    {
+        $this->responseFormat = $responseFormat;
     }
 
     /**

@@ -13,6 +13,7 @@ namespace Widop\Tests\Twitter\OAuth;
 
 use Widop\Twitter\OAuth\OAuth;
 use Widop\Twitter\OAuth\OAuthRequest;
+use Widop\Twitter\OAuth\OAuthResponse;
 use Widop\Twitter\OAuth\Token\OAuthToken;
 
 /**
@@ -161,7 +162,10 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetRequestTokenWithoutCallback()
     {
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
@@ -197,7 +201,10 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetRequestTokenWithCallback()
     {
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
@@ -267,7 +274,10 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetAccessToken()
     {
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
@@ -302,16 +312,19 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException \RuntimeException
+     * @expectedException \Widop\Twitter\OAuth\OAuthException
      * @expectedExceptionMessage An error occured when creating the bearer token.
      */
-    public function testGetBearerTokenWithBadAdapterReturn()
+    public function testGetBearerTokenWithInvalidResult()
     {
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
-            ->will($this->returnValue('foo'));
+            ->will($this->returnValue('{"foo":"bar"}'));
 
         $this->httpAdapter
             ->expects($this->once())
@@ -328,7 +341,10 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
 
     public function testGetBearerToken()
     {
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
@@ -361,7 +377,10 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             ->method('getValue')
             ->will($this->returnValue('token'));
 
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
@@ -381,7 +400,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException \RuntimeException
+     * @expectedException \Widop\Twitter\OAuth\OAuthException
      * @expectedExceptionMessage An error occured when invalidating the bearer token.
      */
     public function testInvalidateBearerTokenWithInvalidResponse()
@@ -391,15 +410,18 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             ->getMock();
 
         $bearerToken
-            ->expects($this->once())
+            ->expects($this->any())
             ->method('getValue')
             ->will($this->returnValue('token'));
 
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
-            ->will($this->returnValue('foo'));
+            ->will($this->returnValue('{"foo":"bar"}'));
 
         $this->httpAdapter
             ->expects($this->once())
@@ -432,11 +454,19 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             ->method('getHeaders')
             ->will($this->returnValue(array('header' => 'foo')));
 
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $request
+            ->expects($this->once())
+            ->method('getResponseFormat')
+            ->will($this->returnValue(OAuthResponse::FORMAT_JSON));
+
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
-            ->will($this->returnValue('foo'));
+            ->will($this->returnValue('{"foo":"bar"}'));
 
         $this->httpAdapter
             ->expects($this->once())
@@ -444,7 +474,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             ->with($this->identicalTo('url'), $this->identicalTo(array('header' => 'foo')))
             ->will($this->returnValue($response));
 
-        $this->assertSame('foo', $this->oauth->sendRequest($request));
+        $this->assertSame(array('foo' => 'bar'), $this->oauth->sendRequest($request)->getData());
     }
 
     public function testSendRequestWithPostRequest()
@@ -475,11 +505,19 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             ->method('getFileParameters')
             ->will($this->returnValue(array('file' => 'baz')));
 
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $request
+            ->expects($this->once())
+            ->method('getResponseFormat')
+            ->will($this->returnValue(OAuthResponse::FORMAT_JSON));
+
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
-            ->will($this->returnValue('foo'));
+            ->will($this->returnValue('{"foo":"bar"}'));
 
         $this->httpAdapter
             ->expects($this->once())
@@ -492,7 +530,7 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
             )
             ->will($this->returnValue($response));
 
-        $this->assertSame('foo', $this->oauth->sendRequest($request));
+        $this->assertSame(array('foo' => 'bar'), $this->oauth->sendRequest($request)->getData());
     }
 
     /**
@@ -511,12 +549,60 @@ class OAuthTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage An error occured when creating the OAuth token. (foo)
+     * @expectedException \Widop\Twitter\OAuth\OAuthException
+     * @expectedExceptionMessage The http response is not valid.
+     */
+    public function testSendRequestWithErroredRequest()
+    {
+        $request = $this->getMock('Widop\Twitter\OAuth\OAuthRequest');
+        $request
+            ->expects($this->once())
+            ->method('getMethod')
+            ->will($this->returnValue(OAuthRequest::METHOD_GET));
+
+        $request
+            ->expects($this->once())
+            ->method('getUrl')
+            ->will($this->returnValue('url'));
+
+        $request
+            ->expects($this->once())
+            ->method('getHeaders')
+            ->will($this->returnValue(array('header' => 'foo')));
+
+        $request
+            ->expects($this->once())
+            ->method('getResponseFormat')
+            ->will($this->returnValue(OAuthResponse::FORMAT_JSON));
+
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $response
+            ->expects($this->once())
+            ->method('getBody')
+            ->will($this->returnValue('{"errors":"foo"}'));
+
+        $this->httpAdapter
+            ->expects($this->once())
+            ->method('getContent')
+            ->with($this->identicalTo('url'), $this->identicalTo(array('header' => 'foo')))
+            ->will($this->returnValue($response));
+
+        $this->oauth->sendRequest($request);
+    }
+
+    /**
+     * @expectedException \Widop\Twitter\OAuth\OAuthException
+     * @expectedExceptionMessage An error occured when creating the OAuth token.
      */
     public function testGetRequestTokenError()
     {
-        $response = $this->getMock('Widop\HttpAdapter\Response');
+        $response = $this->getMockBuilder('Widop\HttpAdapter\HttpResponse')
+            ->disableOriginalConstructor()
+            ->getMock();
+
         $response
             ->expects($this->once())
             ->method('getBody')
